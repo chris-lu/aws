@@ -5,9 +5,9 @@
 
 # Set Variables
 
-# The number of days to retain the log events in the specified log group. Possible values are: 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, and 3653.
+# The number of days to retain the log events in the specified log group. Possible values are: x (Prompted), 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, and 3653.
 RetentionInDays=x
-
+RetentionInDaysForDev=30
 
 # Debug Mode
 DEBUGMODE="0"
@@ -115,7 +115,7 @@ function LogGroupsInRegion(){
 		echo "Begin LogGroupsInRegion Function"
 	fi
 	LogGroupsInRegionStart=1
-	for (( LogGroupsInRegionCount=$LogGroupsInRegionStart; LogGroupsInRegionCount<=$TotalRegions; LogGroupsInRegionCount++ ))
+	for (( LogGroupsInRegionCount = $LogGroupsInRegionStart; LogGroupsInRegionCount <= $TotalRegions; LogGroupsInRegionCount++ ))
 	do
 		Region=$(echo "$ParseRegions" | nl | grep -w [^0-9][[:space:]]$LogGroupsInRegionCount | cut -f2)
 		if [[ $DEBUGMODE = "1" ]]; then
@@ -168,19 +168,30 @@ function SetRetentionPolicy(){
 	for (( SetRetentionPolicyCount=$SetRetentionPolicyStart; SetRetentionPolicyCount<=$TotalLogGroups; SetRetentionPolicyCount++ ))
 	do
 		LogGroup=$(echo "$ParseLogGroups" | nl | grep -w [^0-9][[:space:]]$SetRetentionPolicyCount | cut -f2)
+
+		if [[ $LogGroup = *"dev"* ]] || [[ $LogGroup = *"test"* ]]; then
+			DevMode="Des/test"
+			RetentionDays=$RetentionInDaysForDev
+		else
+			DevMode="Prod"
+			RetentionDays=$RetentionInDays
+		fi
+
 		if [[ $DEBUGMODE = "1" ]]; then
 			echo "o0o0o0o"
 			echo "Count: $SetRetentionPolicyCount"
 			echo "LogGroup: $LogGroup"
+			echo "DevMode: $DevMode"
 			echo "o0o0o0o"
 			pause
 		fi
-		SetRetentionPolicy=$(aws logs put-retention-policy --region $Region --log-group-name $LogGroup --retention-in-days $RetentionInDays --output=json --profile $profile 2>&1)
+
+		SetRetentionPolicy=$(aws logs put-retention-policy --region $Region --log-group-name $LogGroup --retention-in-days $RetentionDays --output=json --profile $profile 2>&1)			
 		if echo "$SetRetentionPolicy" | egrep -iq "error|not"; then
 			fail "$SetRetentionPolicy"
 		fi
 		if [ -z "$SetRetentionPolicy" ]; then
-			echo "Set Retention Policy to $RetentionInDays days for $LogGroup"
+			echo "Set Retention Policy to $RetentionDays days for $LogGroup"
 		else
 			fail "$SetRetentionPolicy"
 		fi

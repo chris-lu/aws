@@ -1,0 +1,2 @@
+# Remove CR from Bash when checking out from windows.
+*.sh text eol=lf
